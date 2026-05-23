@@ -1,0 +1,47 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  # ── Redis (Rate Limiting) ────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+# ── Gateway Configuration ─────────────────────────────────
+gateway:
+  # ── Asymmetric Keys (Zero-Trust Identity Bridge) ────────
+  security:
+    auth-public-key: ${AUTH_PUBLIC_KEY:-----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWep4PAtGoSo0cMFEIIGlBnPOhNEMPLACEHOLDERIDAQAB-----END PUBLIC KEY-----}
+    gateway-private-key: ${GATEWAY_PRIVATE_KEY:-----BEGIN PRIVATE KEY-----MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDRndVLkklx2zfF+f/KBZ6ng8C0ahKjRwwUQggaUGc86E0Q...PLACEHOLDER...-----END PRIVATE KEY-----}
+
+  # ── Rate Limiting (Token Bucket) ────────────────────────
+  rate-limit:
+    bucket-capacity: ${RATE_LIMIT_CAPACITY:100}
+    refill-rate-per-second: ${RATE_LIMIT_REFILL:10}
+
+  # ── Route Catalogue ─────────────────────────────────────
+  routes:
+    - public-path-pattern: /api/transactions/**
+      target-service-url: http://microservice-transactions:8081
+      requires-authentication: true
+    - public-path-pattern: /api/analysis/**
+      target-service-url: http://microservice-analysis:8082
+      requires-authentication: true
+    - public-path-pattern: /health
+      target-service-url: http://localhost:8080
+      requires-authentication: false
+
+# ── Actuator / Prometheus ──────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
