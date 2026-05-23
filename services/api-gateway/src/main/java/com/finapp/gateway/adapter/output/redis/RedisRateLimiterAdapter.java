@@ -111,13 +111,13 @@ public class RedisRateLimiterAdapter implements IRateLimiterRepository {
         long nowMillis = System.currentTimeMillis();
 
         List<String> keys = Collections.singletonList(key);
-        String[] args = {
+        List<String> args = List.of(
                 String.valueOf(rule.bucketCapacity()),
                 String.valueOf(rule.refillRatePerSecond()),
                 String.valueOf(nowMillis)
-        };
+        );
 
-        Long result = redisTemplate.execute(tokenBucketScript, keys, (Object[]) args)
+        Long result = redisTemplate.execute(tokenBucketScript, keys, args)
                 .single()
                 .onErrorResume(throwable -> Mono.just(1L)) // fail-open on Redis errors
                 .block();

@@ -1,15 +1,19 @@
-C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\input\GatewayRoutingController.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\input\GatewayJwksController.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\input\GatewayRequestInterceptor.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\output\http\ReverseProxyHttpAdapter.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\output\jwt\ExternalJwtSessionAdapter.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\output\jwt\InternalJwtSignerAdapter.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\output\redis\RedisRateLimiterAdapter.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\adapter\output\telemetry\GatewayMetricsAndTracingAdapter.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\ApiGatewayApplication.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\port\IApplicationTokenSigner.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\port\IGatewayTelemetry.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\port\IPublicKeyProvider.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\port\IRateLimiterRepository.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\port\IRouteMappingRepository.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\port\ISessionTokenValidator.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\usecase\EnforceRateLimiting.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\usecase\ExchangeSessionTokenForApplicationToken.java
-C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\application\usecase\RouteIncomingRequest.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\domain\entity\RouteMapping.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\domain\exception\GatewayDomainException.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\domain\exception\InvalidSessionTokenException.java
@@ -22,3 +26,5 @@ C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\f
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\infrastructure\config\PerimeterSecurityConfiguration.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\infrastructure\config\RouteConfig.java
 C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\infrastructure\config\UseCaseConfig.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\infrastructure\jwks\AuthServicePublicKeyFetcher.java
+C:\Users\aparr\Documents\proyecto-koins\services\api-gateway\src\main\java\com\finapp\gateway\infrastructure\security\GatewayKeypairGenerator.java

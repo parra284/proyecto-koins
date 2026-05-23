@@ -9,15 +9,15 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:6380}
       timeout: 2000ms
 
 # ── Gateway Configuration ─────────────────────────────────
 gateway:
-  # ── Asymmetric Keys (Zero-Trust Identity Bridge) ────────
+  # ── JWKS Dynamic Key Rotation ───────────────────────────
   security:
-    auth-public-key: ${AUTH_PUBLIC_KEY:-----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWep4PAtGoSo0cMFEIIGlBnPOhNEMPLACEHOLDERIDAQAB-----END PUBLIC KEY-----}
-    gateway-private-key: ${GATEWAY_PRIVATE_KEY:-----BEGIN PRIVATE KEY-----MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDRndVLkklx2zfF+f/KBZ6ng8C0ahKjRwwUQggaUGc86E0Q...PLACEHOLDER...-----END PRIVATE KEY-----}
+    auth-jwks-url: ${AUTH_JWKS_URL:http://localhost:8083/.well-known/jwks.json}
+    jwks-refresh-interval-minutes: ${JWKS_REFRESH_INTERVAL:5}
 
   # ── Rate Limiting (Token Bucket) ────────────────────────
   rate-limit:
@@ -29,9 +29,22 @@ gateway:
     - public-path-pattern: /api/transactions/**
       target-service-url: http://microservice-transactions:8081
       requires-authentication: true
+      strip-prefix: /api/transactions
+      header-transformations:
+        X-Origin-Service: api-gateway
     - public-path-pattern: /api/analysis/**
       target-service-url: http://microservice-analysis:8082
       requires-authentication: true
+      strip-prefix: /api/analysis
+      header-transformations:
+        X-Origin-Service: api-gateway
+    # ── Auth Service (public endpoints: login, register) ───
+    - public-path-pattern: /api/auth/**
+      target-service-url: http://localhost:8083/api/v1/auth
+      requires-authentication: false
+      strip-prefix: /api/auth
+      header-transformations:
+        X-Origin-Service: api-gateway
     - public-path-pattern: /health
       target-service-url: http://localhost:8080
       requires-authentication: false
@@ -45,3 +58,6 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0

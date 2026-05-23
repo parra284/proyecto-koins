@@ -3,12 +3,13 @@ package com.finapp.gateway.infrastructure.config;
 import com.finapp.gateway.application.port.IRouteMappingRepository;
 import com.finapp.gateway.domain.entity.RouteMapping;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -18,27 +19,33 @@ import java.util.Optional;
  *
  * <p>Routes are defined under {@code gateway.routes} in
  * {@code application.yml}.</p>
+ *
+ * <p><strong>Binding strategy:</strong> The {@link GatewayRoutesProperties}
+ * record uses <em>constructor binding</em> via
+ * {@link EnableConfigurationProperties}, which is the correct approach for
+ * immutable records. JavaBean-style binding (via {@code @Bean + @ConfigurationProperties})
+ * cannot populate record fields since records have no setters.</p>
  */
 @Configuration
+@EnableConfigurationProperties(RouteConfig.GatewayRoutesProperties.class)
 public class RouteConfig {
 
     /**
      * Binds the {@code gateway.routes} YAML list to a strongly-typed
-     * properties object.
+     * properties object using constructor binding.
+     *
+     * <p>Spring Boot 3 automatically uses constructor binding for records
+     * when registered via {@link EnableConfigurationProperties}.</p>
      */
     @ConfigurationProperties(prefix = "gateway")
     public record GatewayRoutesProperties(List<RouteEntry> routes) {
         public record RouteEntry(
                 String publicPathPattern,
                 String targetServiceUrl,
-                boolean requiresAuthentication
+                boolean requiresAuthentication,
+                String stripPrefix,
+                Map<String, String> headerTransformations
         ) {}
-    }
-
-    @Bean
-    @ConfigurationProperties(prefix = "gateway")
-    public GatewayRoutesProperties gatewayRoutesProperties() {
-        return new GatewayRoutesProperties(new ArrayList<>());
     }
 
     /**
@@ -51,7 +58,9 @@ public class RouteConfig {
                 .map(entry -> new RouteMapping(
                         entry.publicPathPattern(),
                         entry.targetServiceUrl(),
-                        entry.requiresAuthentication()))
+                        entry.requiresAuthentication(),
+                        entry.stripPrefix(),
+                        entry.headerTransformations()))
                 .toList();
 
         List<RouteMapping> immutableRoutes = Collections.unmodifiableList(routes);

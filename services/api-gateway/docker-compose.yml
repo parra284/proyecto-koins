@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  redis-gateway:
+    image: redis:7.2-alpine
+    container_name: koins-gateway-redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6380}:6379" # 6380 externo → 6379 interno
+    volumes:
+      - koins_gateway_cache:/data
+    networks:
+      - koins-gateway-network
+  # ── Telemetría (Servicio 4) ──────────────────────────
+
+volumes:
+  koins_gateway_cache:
+    driver: local
+  koins_prometheus_data:
+    driver: local
+  koins_grafana_data:
+    driver: local
+
+networks:
+  koins-gateway-network:
+    driver: bridge

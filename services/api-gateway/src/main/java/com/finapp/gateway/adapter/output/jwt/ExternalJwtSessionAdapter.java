@@ -1,5 +1,6 @@
 package com.finapp.gateway.adapter.output.jwt;
 
+import com.finapp.gateway.application.port.IPublicKeyProvider;
 import com.finapp.gateway.application.port.ISessionTokenValidator;
 import com.finapp.gateway.domain.exception.InvalidSessionTokenException;
 import com.finapp.gateway.domain.valueobject.UserIdentityContext;
@@ -9,37 +10,46 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 
 import java.security.PublicKey;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * Adapter — validates incoming session tokens using the Authentication
- * service's RSA public key via the JJWT library.
+ * Adapter — validates incoming session tokens using a dynamically
+ * provisioned public key from the {@link IPublicKeyProvider} port.
  *
  * <p>Implements {@link ISessionTokenValidator} and translates JJWT
  * exceptions into the domain's {@link InvalidSessionTokenException}.</p>
  *
- * <p>The public key is injected at construction time from the
- * infrastructure configuration (loaded from vault / environment).</p>
+ * <p><strong>Key rotation support:</strong> The public key is fetched
+ * from the provider on each validation call. Since the provider is
+ * backed by a hot cache ({@code AuthServicePublicKeyFetcher}), this
+ * is effectively a local memory read with sub-millisecond latency,
+ * while transparently supporting key rotation.</p>
  */
 public class ExternalJwtSessionAdapter implements ISessionTokenValidator {
 
     private static final String CLAIMS_ROLES_KEY = "roles";
     private static final String CLAIMS_USER_ID_KEY = "sub";
+    private static final Duration KEY_FETCH_TIMEOUT = Duration.ofSeconds(5);
 
-    private final PublicKey authenticationPublicKey;
+    private final IPublicKeyProvider publicKeyProvider;
 
     /**
-     * @param authenticationPublicKey the RSA public key of the Authentication service,
-     *                               used to verify session token signatures
+     * @param publicKeyProvider the port providing the Authentication service's
+     *                          current public key for signature verification
      */
-    public ExternalJwtSessionAdapter(PublicKey authenticationPublicKey) {
-        this.authenticationPublicKey = Objects.requireNonNull(
-                authenticationPublicKey, "authenticationPublicKey must not be null");
+    public ExternalJwtSessionAdapter(IPublicKeyProvider publicKeyProvider) {
+        this.publicKeyProvider = Objects.requireNonNull(
+                publicKeyProvider, "publicKeyProvider must not be null");
     }
 
     /**
      * Parses and validates the session token's signature, expiration, and claims.
+     *
+     * <p>The public key is retrieved from the {@link IPublicKeyProvider} hot cache.
+     * The {@code .block()} call is safe here because the provider serves from
+     * an in-memory {@code AtomicReference} — no network I/O occurs on the hot path.</p>
      *
      * @param sessionToken the raw JWT string
      * @return a {@link UserIdentityContext} extracted from the token's claims
@@ -47,6 +57,14 @@ public class ExternalJwtSessionAdapter implements ISessionTokenValidator {
      */
     @Override
     public UserIdentityContext validate(String sessionToken) {
+        PublicKey authenticationPublicKey = publicKeyProvider.getPublicKey()
+                .block(KEY_FETCH_TIMEOUT);
+
+        if (authenticationPublicKey == null) {
+            throw new InvalidSessionTokenException(
+                    "Authentication public key unavailable — cannot verify session token");
+        }
+
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(authenticationPublicKey)
