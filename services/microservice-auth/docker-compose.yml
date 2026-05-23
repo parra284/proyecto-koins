@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  mariadb-auth:
+    image: mariadb:10.11
+    container_name: koins-auth-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - koins_auth_data:/var/lib/mysql
+    networks:
+      - koins-network
+
+  redis-auth:
+    image: redis:7.2-alpine
+    container_name: koins-auth-redis
+    restart: always
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - koins_auth_cache:/data
+    networks:
+      - koins-network
+
+volumes:
+  koins_auth_data:
+    driver: local
+  koins_auth_cache:
+    driver: local
+
+networks:
+  koins-network:
+    driver: bridge

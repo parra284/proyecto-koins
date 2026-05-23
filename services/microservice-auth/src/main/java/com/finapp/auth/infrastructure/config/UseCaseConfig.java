@@ -16,6 +16,10 @@ import com.finapp.auth.infrastructure.persistence.JpaUserRepository;
 import com.finapp.auth.infrastructure.security.BCryptPasswordHasherAdapter;
 import com.finapp.auth.infrastructure.security.JwtSessionTokenSignerAdapter;
 import com.finapp.auth.infrastructure.security.RsaKeypairGeneratorAdapter;
+import com.finapp.auth.infrastructure.security.SecretsVaultAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -25,16 +29,22 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * implementations, and adapter beans via constructor injection,
  * bridging the Dependency Inversion boundary.
  *
- * <p>The interactors and domain classes are pure Java with no Spring
+ * <p>
+ * The interactors and domain classes are pure Java with no Spring
  * annotations. This configuration is the single point where Spring's DI
- * container supplies the infrastructure implementations of the ports.</p>
+ * container supplies the infrastructure implementations of the ports.
+ * </p>
  */
 @Configuration
 public class UseCaseConfig {
 
-    /* ────────────────────────────────────────────────────────
-       Port Implementations (Adapters)
-       ──────────────────────────────────────────────────────── */
+    private static final Logger log = LoggerFactory.getLogger(UseCaseConfig.class);
+
+    /*
+     * ────────────────────────────────────────────────────────
+     * Port Implementations (Adapters)
+     * ────────────────────────────────────────────────────────
+     */
 
     @Bean
     public IUserRepository userRepository(JpaUserRepository jpaUserRepository) {
@@ -47,7 +57,25 @@ public class UseCaseConfig {
     }
 
     @Bean
-    public IKeyProvider keyProvider() {
+    public IKeyProvider keyProvider(
+            @Value("${auth.security.jwt-public-key:}") String jwtPublicKey,
+            @Value("${auth.security.jwt-private-key:}") String jwtPrivateKey,
+            @Value("${auth.security.jwt-key-id:}") String jwtKeyId) {
+
+        boolean keysProvided = jwtPublicKey != null && !jwtPublicKey.isBlank()
+                && jwtPrivateKey != null && !jwtPrivateKey.isBlank();
+
+        if (keysProvided) {
+            log.info("JWT keys detected in environment — loading via SecretsVaultAdapter");
+            SecretsVaultAdapter vault = new SecretsVaultAdapter();
+            String kid = (jwtKeyId != null && !jwtKeyId.isBlank())
+                    ? jwtKeyId
+                    : java.util.UUID.randomUUID().toString();
+            return vault.loadKeyPairFromPem(jwtPublicKey, jwtPrivateKey, kid);
+        }
+
+        log.warn("No JWT keys found in environment — generating ephemeral RSA key pair. "
+                + "Tokens will NOT survive restarts.");
         return new RsaKeypairGeneratorAdapter();
     }
 
@@ -61,18 +89,22 @@ public class UseCaseConfig {
         return new FailedLoginCacheAdapter(redisTemplate);
     }
 
-    /* ────────────────────────────────────────────────────────
-       Infrastructure Components
-       ──────────────────────────────────────────────────────── */
+    /*
+     * ────────────────────────────────────────────────────────
+     * Infrastructure Components
+     * ────────────────────────────────────────────────────────
+     */
 
     @Bean
     public SecurityAuditPresenter securityAuditPresenter() {
         return new SecurityAuditPresenter();
     }
 
-    /* ────────────────────────────────────────────────────────
-       Interactors (Use Cases)
-       ──────────────────────────────────────────────────────── */
+    /*
+     * ────────────────────────────────────────────────────────
+     * Interactors (Use Cases)
+     * ────────────────────────────────────────────────────────
+     */
 
     @Bean
     public LockUserAccount lockUserAccount(IUserRepository userRepository) {
@@ -81,15 +113,15 @@ public class UseCaseConfig {
 
     @Bean
     public RegisterNewUser registerNewUser(IUserRepository userRepository,
-                                           IPasswordHasher passwordHasher) {
+            IPasswordHasher passwordHasher) {
         return new RegisterNewUser(userRepository, passwordHasher);
     }
 
     @Bean
     public AuthenticateUser authenticateUser(IUserRepository userRepository,
-                                              IPasswordHasher passwordHasher,
-                                              ISessionTokenSigner sessionTokenSigner,
-                                              LockUserAccount lockUserAccount) {
+            IPasswordHasher passwordHasher,
+            ISessionTokenSigner sessionTokenSigner,
+            LockUserAccount lockUserAccount) {
         return new AuthenticateUser(
                 userRepository, passwordHasher, sessionTokenSigner, lockUserAccount);
     }

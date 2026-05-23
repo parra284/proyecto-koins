@@ -47,6 +47,10 @@ auth:
     # Rate limiting (DoS mitigation)
     rate-limit-window-seconds: 300
     rate-limit-max-attempts: 10
+    # JWT RSA key pair — loaded from environment / secrets vault
+    jwt-public-key: ${JWT_PUBLIC_KEY:}
+    jwt-private-key: ${JWT_PRIVATE_KEY:}
+    jwt-key-id: ${JWT_KEY_ID:}
 
 # ── Actuator / Prometheus ──────────────────────────────────
 management:
