@@ -14,13 +14,17 @@ import java.util.Objects;
  * Adapter — implements the Token Bucket rate-limiting algorithm using
  * atomic Redis operations via a Lua script.
  *
- * <p>Implements {@link IRateLimiterRepository}. The Lua script guarantees
+ * <p>
+ * Implements {@link IRateLimiterRepository}. The Lua script guarantees
  * atomicity of the refill-check-consume cycle, preventing race conditions
- * under concurrent access.</p>
+ * under concurrent access.
+ * </p>
  *
- * <p>Each client gets a Redis key {@code rate_limit:{clientId}} storing
+ * <p>
+ * Each client gets a Redis key {@code rate_limit:{clientId}} storing
  * the current token count and a companion timestamp key for the last
- * refill time.</p>
+ * refill time.
+ * </p>
  */
 public class RedisRateLimiterAdapter implements IRateLimiterRepository {
 
@@ -29,43 +33,50 @@ public class RedisRateLimiterAdapter implements IRateLimiterRepository {
     /**
      * Lua script implementing the Token Bucket algorithm atomically.
      *
-     * <p>KEYS[1] = bucket key (stores current tokens and last-refill timestamp).</p>
-     * <p>ARGV[1] = bucket capacity, ARGV[2] = refill rate/sec, ARGV[3] = current time millis.</p>
+     * <p>
+     * KEYS[1] = bucket key (stores current tokens and last-refill timestamp).
+     * </p>
+     * <p>
+     * ARGV[1] = bucket capacity, ARGV[2] = refill rate/sec, ARGV[3] = current time
+     * millis.
+     * </p>
      *
-     * <p>Returns {@code 1} if a token was consumed, {@code 0} if the bucket is empty.</p>
+     * <p>
+     * Returns {@code 1} if a token was consumed, {@code 0} if the bucket is empty.
+     * </p>
      */
     private static final String TOKEN_BUCKET_LUA = """
             local bucket_key = KEYS[1]
             local capacity = tonumber(ARGV[1])
             local refill_rate = tonumber(ARGV[2])
             local now = tonumber(ARGV[3])
-            
+
             local bucket = redis.call('HMGET', bucket_key, 'tokens', 'last_refill')
             local tokens = tonumber(bucket[1])
             local last_refill = tonumber(bucket[2])
-            
+
             if tokens == nil then
                 tokens = capacity
                 last_refill = now
             end
-            
+
             local elapsed = math.max(0, (now - last_refill) / 1000.0)
             local refill = math.floor(elapsed * refill_rate)
-            
+
             if refill > 0 then
                 tokens = math.min(capacity, tokens + refill)
                 last_refill = now
             end
-            
+
             local allowed = 0
             if tokens > 0 then
                 tokens = tokens - 1
                 allowed = 1
             end
-            
+
             redis.call('HMSET', bucket_key, 'tokens', tokens, 'last_refill', last_refill)
             redis.call('EXPIRE', bucket_key, math.ceil(capacity / refill_rate) + 10)
-            
+
             return allowed
             """;
 
@@ -81,9 +92,11 @@ public class RedisRateLimiterAdapter implements IRateLimiterRepository {
     /**
      * Atomically attempts to consume one token from the client's bucket.
      *
-     * <p>This method blocks briefly to bridge the reactive Redis call
+     * <p>
+     * This method blocks briefly to bridge the reactive Redis call
      * into the synchronous port interface contract. The Lua script
-     * executes entirely on the Redis server, ensuring atomicity.</p>
+     * executes entirely on the Redis server, ensuring atomicity.
+     * </p>
      *
      * @param clientId the unique client identifier
      * @param rule     the rate-limit configuration
