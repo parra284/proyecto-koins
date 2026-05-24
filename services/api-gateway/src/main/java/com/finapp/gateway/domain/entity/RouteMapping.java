@@ -118,7 +118,7 @@ public final class RouteMapping {
         }
         if (requestPath.startsWith(stripPrefix)) {
             String mutated = requestPath.substring(stripPrefix.length());
-            return mutated.isEmpty() ? "/" : mutated;
+            return mutated;
         }
         return requestPath;
     }

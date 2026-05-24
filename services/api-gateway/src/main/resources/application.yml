@@ -27,13 +27,13 @@ gateway:
   # ── Route Catalogue ─────────────────────────────────────
   routes:
     - public-path-pattern: /api/transactions/**
-      target-service-url: http://microservice-transactions:8081
+      target-service-url: http://localhost:8081/api/v1/transactions
       requires-authentication: true
       strip-prefix: /api/transactions
       header-transformations:
         X-Origin-Service: api-gateway
     - public-path-pattern: /api/analysis/**
-      target-service-url: http://microservice-analysis:8082
+      target-service-url: http://localhost:8082/api/v1/analysis
       requires-authentication: true
       strip-prefix: /api/analysis
       header-transformations:
