@@ -1,6 +1,7 @@
 package com.finapp.transactions.adapter.input.filter;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,44 +9,58 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.security.KeyFactory;
 import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 
 /**
  * Zero Trust JWT Authentication Filter.
  *
  * <p>
  * Intercepts every incoming HTTP request and mathematically validates the
- * JWT signature using the public key provisioned by the API Gateway.
+ * JWT signature using the active public key provisioned dynamically by the
+ * API Gateway through the {@link IGatewayKeyProvider} port.
  * If valid, the {@code userId} claim is injected into the request context
  * for downstream consumption by controllers. If invalid or missing,
  * the filter executes a fail-secure response (401 Unauthorized).
  * </p>
  *
+ * <p><strong>Decentralized Perimeter Validation:</strong> this filter
+ * performs cryptographic verification locally in-process (CPU/RAM) without
+ * making any network call at request time. The public key is resolved
+ * through the {@link IGatewayKeyProvider} abstraction, which returns a
+ * pre-cached key with near-zero latency.</p>
+ *
  * <p>
  * This filter runs before all other business filters ({@link Order} = 1).
  * </p>
+ *
+ * @see IGatewayKeyProvider
  */
-// @Component
+@Component
 @Order(1)
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String AUTHORIZATION_HEADER = "X-Internal-Token";
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final PublicKey publicKey;
+    private final IGatewayKeyProvider keyProvider;
 
-    public JwtAuthenticationFilter(@Value("${app.jwt.public-key}") String publicKeyPem) {
-        this.publicKey = parsePublicKey(publicKeyPem);
+    /**
+     * Constructs the filter with the injected key provider port.
+     *
+     * <p>The concrete implementation of {@link IGatewayKeyProvider} is
+     * resolved by Spring's DI container from the infrastructure layer,
+     * preserving the Dependency Inversion Principle.</p>
+     *
+     * @param keyProvider the gateway key provider (never {@code null})
+     */
+    public JwtAuthenticationFilter(IGatewayKeyProvider keyProvider) {
+        this.keyProvider = keyProvider;
     }
 
     @Override
@@ -72,28 +87,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(BEARER_PREFIX.length());
 
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(publicKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-
+            Claims claims = parseClaims(token);
             String userId = claims.getSubject();
             if (userId == null || userId.isBlank()) {
                 sendUnauthorized(response, "JWT does not contain a valid subject (userId)");
                 return;
             }
 
-            // Inject userId into request context for controllers
             request.setAttribute("userId", userId);
             log.debug("Authenticated userId={} for path={}", userId, path);
-
-            filterChain.doFilter(request, response);
-
-        } catch (Exception ex) {
+        } catch (JwtException | IllegalArgumentException ex) {
             log.warn("JWT validation failed for path={}: {}", path, ex.getMessage());
             sendUnauthorized(response, "Invalid or expired JWT token");
+            return;
         }
+
+        filterChain.doFilter(request, response);
     }
 
     /*
@@ -108,17 +117,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.getWriter().write("{\"error\":\"%s\"}".formatted(message));
     }
 
-    private static PublicKey parsePublicKey(String pem) {
-        try {
-            String keyContent = pem
-                    .replace("-----BEGIN PUBLIC KEY-----", "")
-                    .replace("-----END PUBLIC KEY-----", "")
-                    .replaceAll("\\s+", "");
-            byte[] decoded = Base64.getDecoder().decode(keyContent);
-            X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
-            return KeyFactory.getInstance("RSA").generatePublic(spec);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse JWT public key", e);
-        }
+    private Claims parseClaims(String token) {
+        PublicKey activeKey = keyProvider.getActivePublicKey();
+
+        return Jwts.parser()
+                .verifyWith(activeKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

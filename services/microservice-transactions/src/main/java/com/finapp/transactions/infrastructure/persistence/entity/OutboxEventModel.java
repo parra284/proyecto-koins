@@ -20,6 +20,7 @@ import java.util.UUID;
 public class OutboxEventModel {
 
     @Id
+    @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.BINARY)
     @Column(name = "event_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID eventId;
 

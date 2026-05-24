@@ -7,9 +7,9 @@ spring:
 
   # ── MariaDB ────────────────────────────────────────────
   datasource:
-    url: jdbc:mariadb://localhost:3307/transactions_db
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:secret}
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3308}/${DB_NAME:transactions_db}
+    username: ${DB_USERNAME:koins_txn_user}
+    password: ${DB_PASSWORD:Txn_S3cure#Pass!}
     driver-class-name: org.mariadb.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -38,10 +38,10 @@ spring:
       properties:
         enable.idempotence: true
 
-# ── JWT Configuration ──────────────────────────────────
+# ── Gateway JWKS Configuration ─────────────────────────
 app:
-  jwt:
-    public-key: ${JWT_PUBLIC_KEY:classpath:keys/public.pem}
+  gateway:
+    jwks-url: ${GATEWAY_JWKS_URL:http://localhost:8080/api/v1/.well-known/jwks.json}
   kafka:
     topic:
       transactions: transaction-events

@@ -18,6 +18,7 @@ import java.util.UUID;
 public class TransactionDbModel {
 
     @Id
+    @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.BINARY)
     @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID id;
 
